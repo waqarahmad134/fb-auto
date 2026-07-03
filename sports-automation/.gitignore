@@ -1,0 +1,10 @@
+node_modules/
+.env
+output/
+logs/
+tokens/
+assets/piper/*.onnx
+assets/piper/*.onnx.json
+assets/piper/piper
+assets/piper/piper.exe
+*.log

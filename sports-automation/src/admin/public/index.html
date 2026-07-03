@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sports Automation — Admin</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-title">
+      <span class="dot" id="live-dot"></span>
+      Sports Automation
+    </div>
+    <button id="trigger-btn" class="btn btn-primary">Run Now</button>
+  </header>
+
+  <section class="stats" id="stats"></section>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="runs">Runs</button>
+    <button class="tab" data-tab="articles">Article Queue</button>
+  </nav>
+
+  <main>
+    <section id="tab-runs" class="tab-panel active">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Started</th>
+            <th>Status</th>
+            <th>Article</th>
+            <th>Steps</th>
+            <th>YouTube</th>
+            <th>Facebook</th>
+          </tr>
+        </thead>
+        <tbody id="runs-body"></tbody>
+      </table>
+    </section>
+
+    <section id="tab-articles" class="tab-panel">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Source</th>
+            <th>Published</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="articles-body"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <aside id="drawer" class="drawer">
+    <div class="drawer-inner">
+      <button id="drawer-close" class="btn btn-ghost">&times; Close</button>
+      <div id="drawer-content"></div>
+    </div>
+  </aside>
+  <div id="drawer-backdrop" class="drawer-backdrop"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
