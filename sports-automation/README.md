@@ -159,6 +159,25 @@ runs as its own separate service and is not restarted by PM2.
 pm2 stop sports-automation
 ```
 
+### Admin dashboard
+A small local web dashboard starts automatically alongside the scheduler on
+`ADMIN_PORT` (default `4321`) — open `http://localhost:4321`. It shows run
+counts by status and the number of pending articles, a table of recent runs
+(each expandable to a per-step breakdown plus links to that run's generated
+artifacts — `background.png`, `voice.wav`, `subs.srt`, `final.mp4`,
+`content.json`), and the article queue. A **Run Now** button triggers the
+pipeline on demand without waiting for the next cron tick.
+
+To browse run history and the article queue **without** starting the scheduler
+or running the ffmpeg/Ollama/Piper dependency checks (useful while the rest of
+the stack is still being set up), start just the dashboard:
+```
+npm run admin
+```
+This connects to MongoDB and serves the dashboard only — no cron, no video
+generation. The media artifacts are served straight from `output/<runId>/`, so
+they're only viewable until the daily cleanup cron deletes that run's folder.
+
 ---
 
 ## 6. How it works
@@ -257,10 +276,13 @@ sports-automation/
 ├── scripts/
 │   ├── check-deps.js    # verifies ffmpeg, Ollama, Piper, MongoDB
 │   ├── test-run.js      # runs the pipeline once, immediately
-│   └── youtube-auth.js  # one-time OAuth flow for the YouTube refresh token
+│   ├── youtube-auth.js  # one-time OAuth flow for the YouTube refresh token
+│   └── admin-only.js    # starts just the admin dashboard (no cron/dep checks)
 ├── src/
-│   ├── index.js         # entry point: validate → dep check → connect → cron
+│   ├── index.js         # entry point: validate → dep check → connect → cron → admin
 │   ├── config.js         # env loading + validation
+│   ├── config-validation.js  # required-var rules (shared by config + tests)
+│   ├── admin/            # local web dashboard (Express server + static UI)
 │   ├── db/               # Mongoose connection + Article/Run models
 │   ├── pipeline/          # steps 01–08 + the run.js orchestrator
 │   └── utils/             # logger, retry, ffprobe, cleanup
