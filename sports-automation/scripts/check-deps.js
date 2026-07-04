@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
-import mongoose from "mongoose";
 import config from "../src/config.js";
 import logger from "../src/utils/logger.js";
 
@@ -35,16 +34,6 @@ function checkPiper() {
   return { binExists, voiceExists, configExists };
 }
 
-async function checkMongo() {
-  try {
-    const conn = await mongoose.createConnection(config.mongoUri).asPromise();
-    await conn.close();
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, reason: err.message };
-  }
-}
-
 export async function runDepChecks({ exitOnFailure = true } = {}) {
   const results = [];
 
@@ -72,12 +61,8 @@ export async function runDepChecks({ exitOnFailure = true } = {}) {
       : `Piper binary/voice missing. Expected binary at ${config.piper.bin} and voice at ${config.piper.voice} (+ .json config). Download from the Piper releases/voices repo into assets/piper/.`
   });
 
-  const mongo = await checkMongo();
-  results.push({
-    name: "mongodb",
-    ok: mongo.ok,
-    hint: mongo.ok ? null : `Cannot reach MongoDB at ${config.mongoUri}. ${mongo.reason || ""} Install/start MongoDB locally.`
-  });
+  // No database check needed: SQLite is embedded (better-sqlite3) and the DB file
+  // is created on first connect — there's no separate server to reach.
 
   const failed = results.filter((r) => !r.ok);
   for (const r of results) {

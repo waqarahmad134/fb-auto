@@ -7,7 +7,7 @@ async function main() {
   logger.info("test-run: checking dependencies");
   await runDepChecks({ exitOnFailure: true });
 
-  logger.info("test-run: connecting to MongoDB");
+  logger.info("test-run: opening database");
   await connectDb();
 
   logger.info("test-run: running pipeline once");

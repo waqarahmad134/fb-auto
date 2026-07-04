@@ -48,9 +48,11 @@ Already required to run this project. Verify with `node --version`.
 Install FFmpeg and make sure it's on your `PATH`. Verify with `ffmpeg -version`.
 Windows builds: https://www.gyan.dev/ffmpeg/builds/ (the "essentials" build is enough).
 
-### MongoDB
-Install MongoDB Community Server and make sure it's running locally (default port
-`27017`). https://www.mongodb.com/try/download/community
+### Database — nothing to install
+State is stored in an embedded **SQLite** database (via `better-sqlite3`), created
+automatically at `DB_PATH` (default `./data/app.db`) on first run. There is no
+database server to install, start, or keep running — it's just a file. `npm install`
+compiles/downloads the `better-sqlite3` binary for your platform.
 
 ---
 
@@ -69,7 +71,8 @@ npm run check-deps
 ```
 
 Fix anything it reports before continuing — it prints a specific install hint for
-each failing check (ffmpeg, Ollama/model, Piper binary+voice, MongoDB).
+each failing check (ffmpeg, Ollama/model, Piper binary+voice). The database needs
+no check — SQLite is embedded and its file is created on first connect.
 
 ### Environment variables
 
@@ -138,9 +141,9 @@ part of why the default schedule is every 4 hours, not hourly.
 ```
 npm run test-run
 ```
-This runs dependency checks, connects to MongoDB, and executes the pipeline exactly
-once — useful after each setup step to confirm things work before trusting the
-scheduler.
+This runs dependency checks, opens the SQLite database, and executes the pipeline
+exactly once — useful after each setup step to confirm things work before trusting
+the scheduler.
 
 ### 24/7 with PM2
 ```
@@ -174,7 +177,7 @@ the stack is still being set up), start just the dashboard:
 ```
 npm run admin
 ```
-This connects to MongoDB and serves the dashboard only — no cron, no video
+This opens the SQLite database and serves the dashboard only — no cron, no video
 generation. The media artifacts are served straight from `output/<runId>/`, so
 they're only viewable until the daily cleanup cron deletes that run's folder.
 
@@ -183,7 +186,7 @@ they're only viewable until the daily cleanup cron deletes that run's folder.
 ## 6. How it works
 
 Every tick of `CRON_SCHEDULE`, the pipeline (`src/pipeline/run.js`) runs these steps
-in order, recording each step's result on a `Run` document in MongoDB:
+in order, recording each step's result on a `run` row in SQLite:
 
 1. **Fetch news** — pull all configured RSS feeds, upsert new articles, pick the
    newest unprocessed one. Dead feeds are skipped, not fatal.
@@ -206,7 +209,8 @@ in order, recording each step's result on a `Run` document in MongoDB:
    succeeded, the run is marked `partial_success` rather than `failed` — the video
    already went out on YouTube and must never be re-posted there on retry.
 
-A run never re-processes the same article URL twice (unique index in MongoDB), and
+A run never re-processes the same article URL twice (the `url` primary key in
+SQLite enforces this), and
 an article is only rolled back to `pending` on failure if no upload has happened yet
 — once step 07 succeeds, the article is never reprocessed, even if step 08 fails.
 
@@ -235,8 +239,8 @@ npm test
 
 Runs Node's built-in test runner (`node:test`) against the pure logic modules:
 subtitle chunking/timing, config validation, content-JSON validation, and the
-person-name heuristic. These don't require Ollama, Piper, ffmpeg, or MongoDB to be
-running.
+person-name heuristic. These don't require Ollama, Piper, ffmpeg, or any database
+to be running.
 
 ---
 
@@ -270,11 +274,12 @@ running.
 sports-automation/
 ├── assets/music/        # drop royalty-free .mp3 files here
 ├── assets/piper/        # piper binary + voice model (gitignored)
+├── data/                # SQLite database file (app.db, gitignored)
 ├── output/<runId>/      # generated artifacts per run (gitignored)
 ├── logs/                # pino app logs + PM2 logs (gitignored)
 ├── tokens/               # youtube_token.json (gitignored)
 ├── scripts/
-│   ├── check-deps.js    # verifies ffmpeg, Ollama, Piper, MongoDB
+│   ├── check-deps.js    # verifies ffmpeg, Ollama, Piper
 │   ├── test-run.js      # runs the pipeline once, immediately
 │   ├── youtube-auth.js  # one-time OAuth flow for the YouTube refresh token
 │   └── admin-only.js    # starts just the admin dashboard (no cron/dep checks)
@@ -283,7 +288,7 @@ sports-automation/
 │   ├── config.js         # env loading + validation
 │   ├── config-validation.js  # required-var rules (shared by config + tests)
 │   ├── admin/            # local web dashboard (Express server + static UI)
-│   ├── db/               # Mongoose connection + Article/Run models
+│   ├── db/               # SQLite connection + articles/runs data access
 │   ├── pipeline/          # steps 01–08 + the run.js orchestrator
 │   └── utils/             # logger, retry, ffprobe, cleanup
 └── tests/                 # node:test unit tests for pure logic

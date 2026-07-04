@@ -1,4 +1,4 @@
-// Starts only the admin dashboard + MongoDB connection, skipping ffmpeg/Ollama/Piper
+// Starts only the admin dashboard + database, skipping ffmpeg/Ollama/Piper
 // dep checks and the cron scheduler. Useful for browsing run history and the article
 // queue while the rest of the stack is still being set up.
 import config from "../src/config.js";

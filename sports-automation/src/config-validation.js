@@ -2,8 +2,8 @@
 // without triggering config.js's module-load-time process.exit(1) side effect.
 
 // Always required, regardless of DRY_RUN.
+// (DB_PATH is intentionally omitted — it has a sane default of ./data/app.db.)
 export const ALWAYS_REQUIRED = [
-  "MONGO_URI",
   "RSS_FEEDS",
   "OLLAMA_BASE_URL",
   "OLLAMA_MODEL",

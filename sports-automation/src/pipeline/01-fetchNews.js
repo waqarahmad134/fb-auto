@@ -1,7 +1,7 @@
 import Parser from "rss-parser";
 import config from "../config.js";
 import logger from "../utils/logger.js";
-import Article from "../db/models/Article.js";
+import { upsertArticle, claimNextPendingArticle } from "../db/articles.js";
 
 const parser = new Parser({ timeout: 15000 });
 
@@ -32,19 +32,10 @@ export async function fetchNews() {
 
   let newCount = 0;
   for (const item of items) {
-    const result = await Article.updateOne(
-      { url: item.url },
-      { $setOnInsert: { ...item, status: "pending" } },
-      { upsert: true }
-    );
-    if (result.upsertedCount > 0) newCount++;
+    if (upsertArticle(item)) newCount++;
   }
 
-  const nextArticle = await Article.findOneAndUpdate(
-    { status: "pending" },
-    { $set: { status: "processing" } },
-    { sort: { publishedAt: -1 }, new: true }
-  );
+  const nextArticle = claimNextPendingArticle();
 
   logger.info({ fetched: items.length, newCount, selected: nextArticle?.url || null }, "step 01: fetch news complete");
 

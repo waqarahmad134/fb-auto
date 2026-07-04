@@ -36,7 +36,7 @@ const config = {
   nodeEnv: process.env.NODE_ENV || "development",
   dryRun: DRY_RUN,
   cronSchedule: process.env.CRON_SCHEDULE || "0 */4 * * *",
-  mongoUri: process.env.MONGO_URI,
+  dbPath: process.env.DB_PATH || "./data/app.db",
   outputRetentionDays: num(process.env.OUTPUT_RETENTION_DAYS, 3),
   adminPort: num(process.env.ADMIN_PORT, 4321),
 

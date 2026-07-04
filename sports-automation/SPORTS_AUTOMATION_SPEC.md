@@ -4,6 +4,8 @@
 > Build the project phase-by-phase in the order listed in [Build Phases](#build-phases).
 > This edition uses **100% free resources**: Ollama (local LLM), Pollinations.ai (free image gen, no key), Piper (local TTS). The only external accounts needed are YouTube and Facebook — both free.
 > Do not skip the deduplication, error-handling, or logging requirements — they are what make this safe to run unattended 24/7.
+>
+> **Note (implementation update):** the storage layer described below as "local MongoDB via Mongoose" has since been replaced with an **embedded SQLite database** (`better-sqlite3`, file at `DB_PATH`, default `./data/app.db`) to avoid running a separate database server. The data model, dedup guarantee, and concurrency/stale-run semantics are unchanged — see the README for the current setup. References to MongoDB / Mongoose below are historical.
 
 ---
 

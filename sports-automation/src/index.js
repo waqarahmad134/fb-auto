@@ -3,7 +3,7 @@ import config from "./config.js";
 import logger from "./utils/logger.js";
 import { runDepChecks } from "../scripts/check-deps.js";
 import { connectDb, disconnectDb } from "./db/connect.js";
-import Run from "./db/models/Run.js";
+import { recoverStaleRuns } from "./db/runs.js";
 import { runPipeline } from "./pipeline/run.js";
 import { cleanupOldOutput } from "./utils/cleanup.js";
 import { startAdminServer } from "./admin/server.js";
@@ -11,14 +11,11 @@ import { startAdminServer } from "./admin/server.js";
 const STALE_RUN_MINUTES = 45;
 let adminServer = null;
 
-async function recoverStaleRuns() {
-  const cutoff = new Date(Date.now() - STALE_RUN_MINUTES * 60 * 1000);
-  const result = await Run.updateMany(
-    { status: "running", startedAt: { $lt: cutoff } },
-    { $set: { status: "failed", error: "stale run recovered at startup", finishedAt: new Date() } }
-  );
-  if (result.modifiedCount > 0) {
-    logger.warn({ count: result.modifiedCount }, "recovered stale running run(s) as failed");
+async function recoverStale() {
+  const cutoffIso = new Date(Date.now() - STALE_RUN_MINUTES * 60 * 1000).toISOString();
+  const count = recoverStaleRuns(cutoffIso);
+  if (count > 0) {
+    logger.warn({ count }, "recovered stale running run(s) as failed");
   }
 }
 
@@ -29,7 +26,7 @@ async function main() {
   logger.info({ deps: deps.results.map((r) => r.name) }, "dependency checks passed");
 
   await connectDb();
-  await recoverStaleRuns();
+  await recoverStale();
 
   cron.schedule(config.cronSchedule, async () => {
     try {
