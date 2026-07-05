@@ -14,21 +14,14 @@ test("getMissingRequiredVars returns empty when all vars present (dryRun=false)"
 
 test("getMissingRequiredVars flags missing always-required vars even in dry run", () => {
   const env = fullEnv();
-  delete env.MONGO_URI;
-  assert.deepEqual(getMissingRequiredVars(env, true), ["MONGO_URI"]);
+  delete env.RSS_FEEDS;
+  assert.deepEqual(getMissingRequiredVars(env, true), ["RSS_FEEDS"]);
 });
 
-test("getMissingRequiredVars ignores missing publish-only vars in dry run", () => {
+test("getMissingRequiredVars flags missing always-required vars when not in dry run", () => {
   const env = fullEnv();
-  delete env.YT_CLIENT_ID;
-  delete env.FB_PAGE_ACCESS_TOKEN;
-  assert.deepEqual(getMissingRequiredVars(env, true), []);
-});
-
-test("getMissingRequiredVars requires publish vars when not in dry run", () => {
-  const env = fullEnv();
-  delete env.YT_CLIENT_ID;
-  assert.deepEqual(getMissingRequiredVars(env, false), ["YT_CLIENT_ID"]);
+  delete env.OLLAMA_BASE_URL;
+  assert.deepEqual(getMissingRequiredVars(env, false), ["OLLAMA_BASE_URL"]);
 });
 
 test("getMissingRequiredVars returns everything on an empty env", () => {

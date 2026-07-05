@@ -1,5 +1,11 @@
 # PROJECT SPEC — Football Shorts Automation Pipeline (ZERO-COST EDITION)
 
+> **Implementation note:** the built project deviates from this spec in one place —
+> storage is plain local JSON files (`data/articles.json`, `data/runs.json`) instead
+> of MongoDB, by later request, to keep everything running on-PC with zero external
+> services. An admin dashboard (`src/admin/`) was also added on top of this spec.
+> See [PROJECT_STATUS.md](PROJECT_STATUS.md) for the current, accurate picture.
+
 > **Purpose of this file:** This is the master build spec. Read it fully before writing any code.
 > Build the project phase-by-phase in the order listed in [Build Phases](#build-phases).
 > This edition uses **100% free resources**: Ollama (local LLM), Pollinations.ai (free image gen, no key), Piper (local TTS). The only external accounts needed are YouTube and Facebook — both free.

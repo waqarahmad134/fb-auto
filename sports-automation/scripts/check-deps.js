@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
-import mongoose from "mongoose";
+import path from "node:path";
 import config from "../src/config.js";
 import logger from "../src/utils/logger.js";
 
@@ -35,13 +35,14 @@ function checkPiper() {
   return { binExists, voiceExists, configExists };
 }
 
-async function checkMongo() {
+function checkDataDir() {
+  const dataDir = path.resolve(config.dataDir);
   try {
-    const conn = await mongoose.createConnection(config.mongoUri).asPromise();
-    await conn.close();
-    return { ok: true };
+    fs.mkdirSync(dataDir, { recursive: true });
+    fs.accessSync(dataDir, fs.constants.W_OK);
+    return { ok: true, dataDir };
   } catch (err) {
-    return { ok: false, reason: err.message };
+    return { ok: false, reason: err.message, dataDir };
   }
 }
 
@@ -72,11 +73,11 @@ export async function runDepChecks({ exitOnFailure = true } = {}) {
       : `Piper binary/voice missing. Expected binary at ${config.piper.bin} and voice at ${config.piper.voice} (+ .json config). Download from the Piper releases/voices repo into assets/piper/.`
   });
 
-  const mongo = await checkMongo();
+  const dataDir = checkDataDir();
   results.push({
-    name: "mongodb",
-    ok: mongo.ok,
-    hint: mongo.ok ? null : `Cannot reach MongoDB at ${config.mongoUri}. ${mongo.reason || ""} Install/start MongoDB locally.`
+    name: "data directory",
+    ok: dataDir.ok,
+    hint: dataDir.ok ? null : `Cannot write to local data directory ${dataDir.dataDir}. ${dataDir.reason || ""}`
   });
 
   const failed = results.filter((r) => !r.ok);

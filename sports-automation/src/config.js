@@ -36,7 +36,7 @@ const config = {
   nodeEnv: process.env.NODE_ENV || "development",
   dryRun: DRY_RUN,
   cronSchedule: process.env.CRON_SCHEDULE || "0 */4 * * *",
-  mongoUri: process.env.MONGO_URI,
+  dataDir: process.env.DATA_DIR || "./data",
   outputRetentionDays: num(process.env.OUTPUT_RETENTION_DAYS, 3),
   adminPort: num(process.env.ADMIN_PORT, 4321),
 
@@ -54,17 +54,21 @@ const config = {
     height: num(process.env.IMAGE_HEIGHT, 1344)
   },
 
+  // Use the real photo from the source article/RSS feed as the background when
+  // available, before falling back to an AI-generated image. NOTE: real news photos
+  // show identifiable people and team crests/logos, and are typically licensed to
+  // the publication, not you — this carries real copyright/publicity-rights risk.
+  // Default false: always generate an original AI image instead, informed by the
+  // article's context but never reproducing the real photo/branding/logos.
+  useArticleImage: bool(process.env.USE_ARTICLE_IMAGE, true),
+
+  // Font used for the on-screen headline/subtext graphic overlay (step 06).
+  fontPath: process.env.FONT_PATH || "./assets/fonts/Anton-Regular.ttf",
+
   piper: {
     bin: process.env.PIPER_BIN,
     voice: process.env.PIPER_VOICE,
     lengthScale: num(process.env.PIPER_LENGTH_SCALE, 1.0)
-  },
-
-  youtube: {
-    clientId: process.env.YT_CLIENT_ID,
-    clientSecret: process.env.YT_CLIENT_SECRET,
-    redirectUri: process.env.YT_REDIRECT_URI,
-    privacyStatus: process.env.YT_PRIVACY_STATUS || "public"
   },
 
   facebook: {

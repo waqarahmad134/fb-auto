@@ -16,6 +16,7 @@ export async function retry(fn, opts = {}) {
     try {
       return await fn(attempt);
     } catch (err) {
+      if (err.code === "cancelled") throw err;
       lastError = err;
       logger.warn({ label, attempt, attempts, err: err.message }, `${label} failed (attempt ${attempt}/${attempts})`);
       if (attempt < attempts) {

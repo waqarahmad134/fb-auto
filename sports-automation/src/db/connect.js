@@ -1,14 +1,16 @@
-import mongoose from "mongoose";
+import fs from "node:fs/promises";
+import path from "node:path";
 import config from "../config.js";
 import logger from "../utils/logger.js";
 
+const DATA_DIR = path.resolve(config.dataDir);
+
+/** All state lives in local JSON files under DATA_DIR — this just ensures the directory exists. */
 export async function connectDb() {
-  mongoose.set("strictQuery", true);
-  await mongoose.connect(config.mongoUri);
-  logger.info({ uri: config.mongoUri }, "connected to MongoDB");
-  return mongoose.connection;
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  logger.info({ dataDir: DATA_DIR }, "local JSON data store ready");
 }
 
 export async function disconnectDb() {
-  await mongoose.disconnect();
+  // no persistent connection to close for the local JSON store
 }

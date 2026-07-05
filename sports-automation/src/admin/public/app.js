@@ -1,7 +1,7 @@
 const STEP_ORDER = [
   "fetchNews", "generateContent", "generateImage",
   "generateVoice", "generateSubtitles", "assembleVideo",
-  "uploadYouTube", "postFacebook"
+  "postFacebook"
 ];
 
 async function api(path, opts) {
@@ -34,7 +34,6 @@ async function loadStats() {
   const stats = await api("/api/stats");
   const cards = [
     { label: "Success", value: stats.runs.success || 0 },
-    { label: "Partial", value: stats.runs.partial_success || 0 },
     { label: "Failed", value: stats.runs.failed || 0 },
     { label: "No New Content", value: stats.runs.no_new_content || 0 },
     { label: "Running", value: stats.runs.running || 0 },
@@ -45,11 +44,44 @@ async function loadStats() {
     .join("");
 }
 
+function hasVideo(run) {
+  return (run.stepResults || []).some((s) => s.step === "assembleVideo" && s.ok);
+}
+
+function facebookCell(run) {
+  if (run.facebookVideoId) return `<span class="muted">${run.facebookVideoId}</span>`;
+  if (hasVideo(run) && run.status !== "running") {
+    return `<button class="btn btn-small btn-primary" data-action="upload-fb" data-run-id="${run.runId}">Upload</button>`;
+  }
+  return `<span class="muted">-</span>`;
+}
+
+async function postToFacebook(runId, button) {
+  if (!confirm("Post this video to your Facebook Page now? This publishes publicly and can't be undone from here.")) return;
+  button.disabled = true;
+  button.textContent = "Uploading…";
+  try {
+    const result = await api(`/api/runs/${runId}/post-facebook`, { method: "POST" });
+    if (result.ok) {
+      button.textContent = "Posted ✓";
+    } else {
+      alert(`Facebook upload failed: ${result.reason}`);
+      button.disabled = false;
+      button.textContent = "Upload";
+    }
+  } catch (err) {
+    alert(`Facebook upload failed: ${err.message}`);
+    button.disabled = false;
+    button.textContent = "Upload";
+  }
+  refreshAll();
+}
+
 async function loadRuns() {
   const runs = await api("/api/runs?limit=30");
   const body = document.getElementById("runs-body");
   if (runs.length === 0) {
-    body.innerHTML = `<tr><td colspan="6" class="empty">No runs yet. Click "Run Now" or wait for the next cron tick.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="5" class="empty">No runs yet. Click "Run Now" or wait for the next cron tick.</td></tr>`;
     return;
   }
   body.innerHTML = runs.map((r) => `
@@ -58,13 +90,21 @@ async function loadRuns() {
       <td>${badge(r.status)}</td>
       <td class="muted">${r.articleUrl ? new URL(r.articleUrl).hostname : "-"}</td>
       <td>${stepChips(r.stepResults)}</td>
-      <td class="muted">${r.youtubeVideoId || "-"}</td>
-      <td class="muted">${r.facebookVideoId || "-"}</td>
+      <td>${facebookCell(r)}</td>
     </tr>
   `).join("");
 
   body.querySelectorAll("tr[data-run-id]").forEach((row) => {
-    row.addEventListener("click", () => openRunDrawer(row.dataset.runId));
+    row.addEventListener("click", (e) => {
+      if (e.target.closest('[data-action="upload-fb"]')) return;
+      openRunDrawer(row.dataset.runId);
+    });
+  });
+  body.querySelectorAll('[data-action="upload-fb"]').forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      postToFacebook(btn.dataset.runId, btn);
+    });
   });
 }
 
@@ -122,22 +162,55 @@ async function openRunDrawer(runId) {
     mediaHtml += `<img class="preview" src="${run.artifacts["background.png"]}" />`;
   }
 
+  const canStop = run.status === "running";
+  const canRetry = (run.status === "failed" || run.status === "cancelled") && run.articleUrl;
+  const actionsHtml = canStop
+    ? `<button class="btn btn-danger" data-action="stop" data-run-id="${run.runId}">Stop</button>`
+    : canRetry
+      ? `<button class="btn btn-primary" data-action="retry" data-run-id="${run.runId}">Continue</button>`
+      : "";
+
   content.innerHTML = `
-    <h2>${run.runId}</h2>
+    <div class="drawer-title-row">
+      <h2>${run.runId}</h2>
+      ${actionsHtml}
+    </div>
     <div class="kv">
       <div class="k">Status</div><div>${badge(run.status)}</div>
       <div class="k">Started</div><div>${fmtDate(run.startedAt)}</div>
       <div class="k">Finished</div><div>${fmtDate(run.finishedAt)}</div>
       <div class="k">Article</div><div>${run.articleUrl ? `<a href="${run.articleUrl}" target="_blank" rel="noopener">${run.articleUrl}</a>` : "-"}</div>
       ${run.error ? `<div class="k">Error</div><div>${run.error}</div>` : ""}
-      <div class="k">YouTube</div><div>${run.youtubeVideoId || "-"}</div>
-      <div class="k">Facebook</div><div>${run.facebookVideoId || "-"}</div>
+      <div class="k">Facebook</div><div>${facebookCell(run)}</div>
     </div>
     ${mediaHtml ? `<h3>Preview</h3>${mediaHtml}` : ""}
     ${scriptHtml}
     <h3>Step Timeline</h3>
     ${timeline}
   `;
+
+  const stopBtn = content.querySelector('[data-action="stop"]');
+  if (stopBtn) {
+    stopBtn.addEventListener("click", async () => {
+      stopBtn.disabled = true;
+      stopBtn.textContent = "Stopping…";
+      await api(`/api/runs/${runId}/stop`, { method: "POST" });
+      setTimeout(() => { openRunDrawer(runId); refreshAll(); }, 1000);
+    });
+  }
+  const retryBtn = content.querySelector('[data-action="retry"]');
+  if (retryBtn) {
+    retryBtn.addEventListener("click", async () => {
+      retryBtn.disabled = true;
+      retryBtn.textContent = "Continuing…";
+      await api(`/api/runs/${runId}/retry`, { method: "POST" });
+      setTimeout(() => { openRunDrawer(runId); refreshAll(); }, 1000);
+    });
+  }
+  const uploadBtn = content.querySelector('[data-action="upload-fb"]');
+  if (uploadBtn) {
+    uploadBtn.addEventListener("click", () => postToFacebook(runId, uploadBtn));
+  }
 
   document.getElementById("drawer").classList.add("open");
   document.getElementById("drawer-backdrop").classList.add("open");

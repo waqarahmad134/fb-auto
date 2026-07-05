@@ -1,9 +1,9 @@
 import path from "node:path";
 import fs from "node:fs";
 import express from "express";
-import Run from "../db/models/Run.js";
-import Article from "../db/models/Article.js";
-import { runPipeline } from "../pipeline/run.js";
+import { listRuns, getRun, countRunsByStatus } from "../db/runStore.js";
+import { listArticles, countArticlesByStatus } from "../db/articleStore.js";
+import { runPipeline, cancelRun, retryRun, postRunToFacebook } from "../pipeline/run.js";
 import logger from "../utils/logger.js";
 
 const OUTPUT_DIR = path.resolve("output");
@@ -15,22 +15,21 @@ export function createAdminServer() {
   app.use(express.static(PUBLIC_DIR));
 
   app.get("/api/stats", async (req, res) => {
-    const [byStatus, pendingArticles] = await Promise.all([
-      Run.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
-      Article.countDocuments({ status: "pending" })
+    const [counts, pendingArticles] = await Promise.all([
+      countRunsByStatus(),
+      countArticlesByStatus("pending")
     ]);
-    const counts = Object.fromEntries(byStatus.map((s) => [s._id, s.count]));
     res.json({ runs: counts, pendingArticles });
   });
 
   app.get("/api/runs", async (req, res) => {
     const limit = Math.min(Number(req.query.limit) || 20, 100);
-    const runs = await Run.find().sort({ startedAt: -1 }).limit(limit).lean();
+    const runs = await listRuns({ limit });
     res.json(runs);
   });
 
   app.get("/api/runs/:runId", async (req, res) => {
-    const run = await Run.findOne({ runId: req.params.runId }).lean();
+    const run = await getRun(req.params.runId);
     if (!run) return res.status(404).json({ error: "run not found" });
 
     const runDir = path.join(OUTPUT_DIR, req.params.runId);
@@ -57,8 +56,7 @@ export function createAdminServer() {
 
   app.get("/api/articles", async (req, res) => {
     const limit = Math.min(Number(req.query.limit) || 50, 200);
-    const filter = req.query.status ? { status: req.query.status } : {};
-    const articles = await Article.find(filter).sort({ publishedAt: -1 }).limit(limit).lean();
+    const articles = await listArticles({ status: req.query.status, limit });
     res.json(articles);
   });
 
@@ -66,6 +64,29 @@ export function createAdminServer() {
     logger.info("admin: manual run triggered");
     runPipeline().catch((err) => logger.error({ err: err.message }, "manually triggered run failed"));
     res.status(202).json({ triggered: true });
+  });
+
+  app.post("/api/runs/:runId/stop", (req, res) => {
+    const stopped = cancelRun(req.params.runId);
+    logger.info({ runId: req.params.runId, stopped }, "admin: stop requested");
+    res.json({ stopped });
+  });
+
+  app.post("/api/runs/:runId/retry", async (req, res) => {
+    logger.info({ runId: req.params.runId }, "admin: retry requested");
+    retryRun(req.params.runId)
+      .then((result) => {
+        if (!result.ok) logger.warn({ runId: req.params.runId, reason: result.reason }, "retry did not start");
+      })
+      .catch((err) => logger.error({ runId: req.params.runId, err: err.message }, "retried run failed"));
+    res.status(202).json({ triggered: true });
+  });
+
+  app.post("/api/runs/:runId/post-facebook", async (req, res) => {
+    logger.info({ runId: req.params.runId }, "admin: manual Facebook upload requested");
+    const result = await postRunToFacebook(req.params.runId);
+    if (!result.ok) logger.warn({ runId: req.params.runId, reason: result.reason }, "manual Facebook upload failed");
+    res.json(result);
   });
 
   return app;

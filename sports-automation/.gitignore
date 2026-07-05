@@ -1,8 +1,8 @@
 node_modules/
 .env
+data/
 output/
 logs/
-tokens/
 assets/piper/*.onnx
 assets/piper/*.onnx.json
 assets/piper/piper
